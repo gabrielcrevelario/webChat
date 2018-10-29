@@ -9,4 +9,5 @@ const userSchema = new Schema ({
     conversations: [{type: Schema.ObjectId, ref:'Conversation'}],
     messages: [{type: Schema.ObjectId, ref: 'Message'}]
 })
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('User', userSchema,'User');
+

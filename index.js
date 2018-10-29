@@ -1,26 +1,27 @@
 const express = require('express');
+const bodyParser = require('body-parser');
 const app = express();
 const port = 3000;
-const mongoose = require('./config/db'); 
+const http = require('http').Server(app);
+const io = require('socket.io')(http);
 const User = require('./models/User');
 const Conversation = require('./models/Conversation');
 const Message = require('./models/Message');
-const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
 
-app.get('/conversation/title', (req, res) => {
+app.get('/conversation/title', async (req, res) => {
 try{
-  const conversa = Conversation.find({title:req.params.title});
+  const conversa = await Conversation.find({title:req.params.title});
   res.send(conversa)
 } catch(e) {
   throw e;
 }
   
 })
-app.get('/conversation/', (req, res) => {
+app.get('/conversation/', async (req, res) => {
   try{
-    const conversas = Conversation.find();
+    const conversas = await Conversation.find();
     res.send(conversas)
   } catch(e) {
     throw e;
@@ -28,41 +29,41 @@ app.get('/conversation/', (req, res) => {
     
   })
 
-app.put('/conversation/:id/users/:idUser', (req, res) => {
+app.post('/conversation/:id/users/:idUser', async (req, res) => {
   try{
-      User.findByIdAndUpdate(req.params.idUser,{$set:{
+    await User.findByIdAndUpdate(req.params.idUser,{$set:{
         conversations:req.params.id
       }});
 
-      Conversation.findByIdAndUpdate(req.params.id,
-        { $set:{users:[req.params.idUser],
-                messages:[{messageBody : req.body.messages[0].messageBody,
-                             user:req.params.idUser}]
-               }});
-
-    const conversationFind = Conversation.findById(req.params.id);
-    res.json().status(200)
+      await User.find({_id:req.params.idUser});
+   const msn = await Message.create({bodyMessage: req.body.bodyMessage, user:req.params.idUser, conversation:req.params.id});
+    await Conversation.findByIdAndUpdate(req.params.id, {$push: {
+      users:req.params.idUser,
+      messages:msn.id
+    }});
+    const findMessagesById = await Message.find({conversation:req.params.id});
+    res.json(findMessagesById).status(200)
   } catch(e) {
     throw e;
   }
-  })
   
-  app.post('/conversation/', (req, res) => {
+  });
+  
+  app.post('/conversation/', async (req, res) => {
     try{
-      const conversaCreated = Conversation.create({
+       await Conversation.create({
         title: req.body.title,
         author: req.body.author,
         users:req.body.users,
-        messages: req.body.messages,
-        dataEnv:req.body.dataEnv
+        messages: req.body.messages.bodyMessege
       });
-      res.send(conversaCreated).status(201);
+      res.status(201);
     } catch(e) {
       throw e;
     }
     })
 
-    app.post('/user/', (req, res) => {
+    app.post('/user/', async (req, res) => {
       try{
         const userCreated = User.create({
           name: req.body.name,
@@ -70,8 +71,7 @@ app.put('/conversation/:id/users/:idUser', (req, res) => {
           email: req.body.email,
           password:req.body.password,
           conversations: req.body.conversations,
-          messages:req.body.messages,
-          dataEnv:req.body.dataEnv
+          messages:req.body.messages
         });
         res.send(userCreated).status(201);
       } catch(e) {
@@ -81,6 +81,6 @@ app.put('/conversation/:id/users/:idUser', (req, res) => {
     
 
 
-app.listen(port, () => {
-  console.log(`ruining na porta ${port}`)
+const server = http.listen(port, () => {
+  console.log('ruining na porta',server.address().port)
 })
